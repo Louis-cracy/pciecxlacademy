@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCIe / CXL Architecture Academy</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;700&display=swap');
+
+:root {
+  --bg: #080c14;
+  --bg2: #0d1520;
+  --bg3: #111d2e;
+  --panel: #0a1628;
+  --border: #1a2d4a;
+  --border2: #243d5c;
+  --accent: #00d4ff;
+  --accent2: #7b4fff;
+  --accent3: #ff6b35;
+  --accent4: #00ff88;
+  --text: #e8f0fe;
+  --text2: #8ba4c8;
+  --text3: #4d6b8a;
+  --pcie: #0099ff;
+  --cxl: #aa44ff;
+  --phy: #ff6b35;
+  --soft: #00cc66;
+  --hw: #ffcc00;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ── Scanline overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,.015) 2px, rgba(0,212,255,.015) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Header ── */
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 60px;
+  background: rgba(8,12,20,.95);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.logo span { color: var(--accent2); }
+
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: 24px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.nav-tab {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  color: var(--text3);
+  transition: all .2s;
+  white-space: nowrap;
+}
+
+.nav-tab:hover { color: var(--text2); border-color: var(--border2); background: var(--bg3); }
+.nav-tab.active { color: var(--accent); border-color: var(--accent); background: rgba(0,212,255,.08); }
+
+/* ── Layout ── */
+.app {
+  display: flex;
+  min-height: 100vh;
+  padding-top: 60px;
+}
+
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.sidebar-section { margin-bottom: 8px; }
+.sidebar-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text3);
+  padding: 8px 16px 4px;
+  text-transform: uppercase;
+}
+
+.sidebar-item {
+  padding: 8px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text2);
+  border-left: 2px solid transparent;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-item:hover { color: var(--text); background: var(--bg3); }
+.sidebar-item.active { color: var(--accent); border-color: var(--accent); background: rgba(0,212,255,.06); }
+.sidebar-item .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.main {
+  margin-left: 220px;
+  flex: 1;
+  padding: 32px;
+  max-width: calc(100vw - 220px);
+}
+
+/* ── Page ── */
+.page { display: none; }
+.page.active { display: block; animation: fadeIn .3s ease; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text3);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .icon {
+  width: 20px; height: 20px;
+  background: rgba(0,212,255,.15);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+/* ── SVG Diagrams ── */
+.diagram-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+svg text { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Layer Stack ── */
+.layer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.layer {
+  padding: 12px 20px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.layer:hover { transform: translateX(4px); filter: brightness(1.2); }
+.layer.selected { border-color: rgba(255,255,255,.3); }
+
+.layer-app { background: rgba(0,204,102,.15); color: #00cc66; }
+.layer-os  { background: rgba(255,204,0,.12); color: #ffcc00; }
+.layer-drv { background: rgba(255,107,53,.12); color: #ff6b35; }
+.layer-ll  { background: rgba(0,153,255,.12); color: #0099ff; }
+.layer-tl  { background: rgba(170,68,255,.15); color: #aa44ff; }
+.layer-dl  { background: rgba(0,212,255,.12); color: #00d4ff; }
+.layer-pl  { background: rgba(255,107,53,.2); color: #ff8855; }
+
+.layer-desc {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: inherit;
+  opacity: .7;
+}
+
+/* ── Info Panel ── */
+.info-panel {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 20px;
+  margin-top: 16px;
+  min-height: 120px;
+  transition: all .2s;
+}
+
+.info-panel h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.info-panel p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text2);
+}
+
+.info-panel code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: rgba(0,212,255,.1);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+@media(max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+/* ── Tags ── */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  margin: 2px;
+}
+.tag-pcie { background: rgba(0,153,255,.2); color: #0099ff; }
+.tag-cxl  { background: rgba(170,68,255,.2); color: #aa44ff; }
+.tag-phy  { background: rgba(255,107,53,.2); color: #ff6b35; }
+.tag-sw   { background: rgba(0,204,102,.2); color: #00cc66; }
+.tag-hw   { background: rgba(255,204,0,.2); color: #ffcc00; }
+
+/* ── Table ── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.data-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text3);
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border2);
+  text-transform: uppercase;
+}
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  vertical-align: top;
+}
+.data-table tr:hover td { background: rgba(255,255,255,.02); }
+
+/* ── Pulse animation ── */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes flow {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.flow-line {
+  stroke-dasharray: 6 4;
+  animation: flow .8s linear infinite;
+}
+
+/* ── Tooltip ── */
+.tooltip-wrap { position: relative; display: inline-block; }
+.tooltip-wrap .tt {
+  display: none;
+  position: absolute;
+  bottom: 120%; left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 100;
+}
+.tooltip-wrap:hover .tt { display: block; }
+
+/* ── Progress bar ── */
+.progress-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+/* ── Hero banner ── */
+.hero-banner {
+  background: linear-gradient(135deg, rgba(0,153,255,.08), rgba(170,68,255,.08));
+  border: 1px solid rgba(0,153,255,.2);
+  border-radius: 8px;
+  padding: 28px;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -20%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(0,153,255,.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.badge-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ── Protocol badge ── */
+.proto-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+.proto-badge.pcie { background: rgba(0,153,255,.15); color: #4db8ff; border: 1px solid rgba(0,153,255,.3); }
+.proto-badge.cxl  { background: rgba(170,68,255,.15); color: #cc88ff; border: 1px solid rgba(170,68,255,.3); }
+
+/* ── Connector lines ── */
+.connector { stroke-width: 2; fill: none; }
+
+/* ── Highlight box ── */
+.highlight {
+  border-left: 3px solid var(--accent);
+  background: rgba(0,212,255,.05);
+  padding: 12px 16px;
+  border-radius: 0 4px 4px 0;
+  margin: 12px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text2);
+}
+
+.highlight.warn { border-color: var(--accent3); background: rgba(255,107,53,.05); }
+.highlight.ok   { border-color: var(--accent4); background: rgba(0,255,136,.05); }
+
+/* ── CXL Type cards ── */
+.cxl-type-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.cxl-type-card:hover { border-color: var(--accent2); background: rgba(170,68,255,.05); }
+.cxl-type-card.selected { border-color: var(--accent2); background: rgba(170,68,255,.08); }
+.cxl-type-card h4 {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #cc88ff;
+  margin-bottom: 8px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">PCIe <span>/</span> CXL <span>ACADEMY</span></div>
+  <div class="nav-tabs" id="navTabs">
+    <div class="nav-tab active" onclick="switchPage('overview','Overview')">概要</div>
+    <div class="nav-tab" onclick="switchPage('pcie-layers','PCIeレイヤ')">PCIeレイヤ</div>
+    <div class="nav-tab" onclick="switchPage('host-device','Host-Device')">Host/Device</div>
+    <div class="nav-tab" onclick="switchPage('driver','デバイスドライバ')">ドライバ</div>
+    <div class="nav-tab" onclick="switchPage('bridge-noc','Bridge/NoC')">Bridge/NoC</div>
+    <div class="nav-tab" onclick="switchPage('cxl','CXL')">CXL詳細</div>
+    <div class="nav-tab" onclick="switchPage('controller','コントローラ')">コントローラ</div>
+    <div class="nav-tab" onclick="switchPage('phy','PHY接続')">PHY⇔上位層</div>
+  </div>
+</header>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">基礎</div>
+    <div class="sidebar-item active" onclick="switchPage('overview')"><span class="dot"></span>全体俯瞰</div>
+    <div class="sidebar-item" onclick="switchPage('pcie-layers')"><span class="dot"></span>PCIeプロトコル層</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">アーキテクチャ</div>
+    <div class="sidebar-item" onclick="switchPage('host-device')"><span class="dot"></span>Host・Device関係</div>
+    <div class="sidebar-item" onclick="switchPage('driver')"><span class="dot"></span>デバイスドライバ</div>
+    <div class="sidebar-item" onclick="switchPage('bridge-noc')"><span class="dot"></span>Bridge / NoC</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">CXL</div>
+    <div class="sidebar-item" onclick="switchPage('cxl')"><span class="dot"></span>CXL概要・Type</div>
+    <div class="sidebar-item" onclick="switchPage('controller')"><span class="dot"></span>コントローラ機能</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">PHYエンジニア向け</div>
+    <div class="sidebar-item" onclick="switchPage('phy')"><span class="dot"></span>PHY⇔上位層インタフェース</div>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="app">
+<div class="main">
+
+<!-- ========== PAGE: OVERVIEW ========== -->
+<div id="page-overview" class="page active">
+  <div class="page-title">PCIe / CXL アーキテクチャ全体俯瞰</div>
+  <div class="page-subtitle">PHY専門家が「自分のIPが何に繋がっているか」をシステム全体から理解するための地図</div>
+
+  <div class="hero-banner">
+    <div style="display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px;">PCIe と CXL の位置づけ</div>
+        <p style="font-size:13px;line-height:1.8;color:var(--text2);">
+          PCIeはCPUとデバイス間の<strong style="color:var(--pcie)">汎用I/Oプロトコル</strong>。<br>
+          CXLはPCIe物理層を再利用しつつ<strong style="color:var(--cxl)">メモリ・キャッシュ一貫性</strong>を加えた次世代拡張規格。<br>
+          PHYはどちらも同じ電気的インターフェースを共有する。
+        </p>
+        <div class="badge-row">
+          <span class="proto-badge pcie">▸ PCIe 5.0 / 6.0</span>
+          <span class="proto-badge cxl">▸ CXL 1.1 / 2.0 / 3.0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full system overview SVG -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⊞</span>システム全体構成図</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 900 560" style="max-width:900px;display:block;margin:0 auto;">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="#4d6b8a"/>
+          </marker>
+          <marker id="arr-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="#0099ff"/>
+          </marker>
+          <marker id="arr-p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="#aa44ff"/>
+          </marker>
+        </defs>
+
+        <!-- CPU Package -->
+        <rect x="30" y="30" width="280" height="200" rx="8" fill="none" stroke="#1a3a5c" stroke-width="1.5"/>
+        <text x="46" y="52" fill="#4d6b8a" font-size="10" letter-spacing="2">CPU PACKAGE</text>
+
+        <!-- CPU Core -->
+        <rect x="48" y="62" width="100" height="60" rx="4" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+        <text x="98" y="87" fill="#ffcc00" font-size="11" text-anchor="middle" font-weight="700">CPU Core</text>
+        <text x="98" y="104" fill="#ffcc00" font-size="9" text-anchor="middle" opacity=".7">x86 / ARM</text>
+
+        <!-- LLC -->
+        <rect x="164" y="62" width="130" height="60" rx="4" fill="rgba(0,204,102,.08)" stroke="#00cc66" stroke-width="1"/>
+        <text x="229" y="87" fill="#00cc66" font-size="11" text-anchor="middle" font-weight="700">LLC / Cache</text>
+        <text x="229" y="104" fill="#00cc66" font-size="9" text-anchor="middle" opacity=".7">Last Level Cache</text>
+
+        <!-- Memory Controller -->
+        <rect x="48" y="142" width="120" height="48" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="108" y="163" fill="#0099ff" font-size="10" text-anchor="middle" font-weight="700">Memory Ctrl</text>
+        <text x="108" y="179" fill="#0099ff" font-size="9" text-anchor="middle" opacity=".7">DDR5 / LPDDR5</text>
+
+        <!-- PCIe Root Complex -->
+        <rect x="185" y="142" width="109" height="48" rx="4" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1.5"/>
+        <text x="240" y="162" fill="#00d4ff" font-size="10" text-anchor="middle" font-weight="700">Root Complex</text>
+        <text x="240" y="177" fill="#00d4ff" font-size="9" text-anchor="middle" opacity=".7">(RC)</text>
+
+        <!-- OS / SW box -->
+        <rect x="330" y="30" width="200" height="90" rx="8" fill="rgba(0,204,102,.07)" stroke="rgba(0,204,102,.25)" stroke-width="1.5"/>
+        <text x="430" y="52" fill="#00cc66" font-size="10" text-anchor="middle" letter-spacing="1">SOFTWARE STACK</text>
+        <text x="430" y="78" fill="#00cc66" font-size="13" text-anchor="middle" font-weight="700">OS Kernel</text>
+        <text x="430" y="96" fill="#00cc66" font-size="9" text-anchor="middle" opacity=".7">Linux / Windows</text>
+
+        <!-- Driver box -->
+        <rect x="330" y="136" width="200" height="50" rx="6" fill="rgba(255,107,53,.1)" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="430" y="158" fill="#ff6b35" font-size="12" text-anchor="middle" font-weight="700">Device Driver</text>
+        <text x="430" y="176" fill="#ff6b35" font-size="9" text-anchor="middle" opacity=".7">PCIe enumeration / BAR mapping</text>
+
+        <!-- PCIe Bus -->
+        <rect x="30" y="270" width="760" height="36" rx="4" fill="rgba(0,153,255,.07)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="415" y="293" fill="#0099ff" font-size="12" text-anchor="middle" font-weight="700" letter-spacing="1">PCIe BUS  /  CXL over PCIe PHY</text>
+
+        <!-- PHY layer highlight -->
+        <rect x="30" y="315" width="760" height="28" rx="4" fill="rgba(255,107,53,.1)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="415" y="334" fill="#ff6b35" font-size="11" text-anchor="middle" font-weight="700" letter-spacing="2">▸ PHY LAYER (あなたのIPはここ)</text>
+
+        <!-- Devices -->
+        <!-- GPU -->
+        <rect x="40" y="380" width="130" height="80" rx="6" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="105" y="410" fill="#aa44ff" font-size="13" text-anchor="middle" font-weight="700">GPU</text>
+        <text x="105" y="428" fill="#aa44ff" font-size="9" text-anchor="middle" opacity=".7">CXL.cache</text>
+        <text x="105" y="443" fill="#aa44ff" font-size="9" text-anchor="middle" opacity=".7">PCIe EP</text>
+
+        <!-- NVMe SSD -->
+        <rect x="190" y="380" width="130" height="80" rx="6" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="255" y="410" fill="#0099ff" font-size="13" text-anchor="middle" font-weight="700">NVMe SSD</text>
+        <text x="255" y="428" fill="#0099ff" font-size="9" text-anchor="middle" opacity=".7">PCIe Endpoint</text>
+        <text x="255" y="443" fill="#0099ff" font-size="9" text-anchor="middle" opacity=".7">Storage Class</text>
+
+        <!-- CXL Memory -->
+        <rect x="340" y="380" width="130" height="80" rx="6" fill="rgba(0,255,136,.08)" stroke="#00ff88" stroke-width="1.5"/>
+        <text x="405" y="406" fill="#00ff88" font-size="12" text-anchor="middle" font-weight="700">CXL Memory</text>
+        <text x="405" y="422" fill="#00ff88" font-size="9" text-anchor="middle" opacity=".7">Type 3</text>
+        <text x="405" y="438" fill="#00ff88" font-size="9" text-anchor="middle" opacity=".7">DRAM Expander</text>
+
+        <!-- Smart NIC -->
+        <rect x="490" y="380" width="130" height="80" rx="6" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1.5"/>
+        <text x="555" y="406" fill="#ffcc00" font-size="12" text-anchor="middle" font-weight="700">Smart NIC</text>
+        <text x="555" y="422" fill="#ffcc00" font-size="9" text-anchor="middle" opacity=".7">PCIe Endpoint</text>
+        <text x="555" y="438" fill="#ffcc00" font-size="9" text-anchor="middle" opacity=".7">DMA / SR-IOV</text>
+
+        <!-- Switch -->
+        <rect x="640" y="380" width="130" height="80" rx="6" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1.5"/>
+        <text x="705" y="406" fill="#00d4ff" font-size="12" text-anchor="middle" font-weight="700">PCIe Switch</text>
+        <text x="705" y="422" fill="#00d4ff" font-size="9" text-anchor="middle" opacity=".7">Bridge</text>
+        <text x="705" y="438" fill="#00d4ff" font-size="9" text-anchor="middle" opacity=".7">Upstream/Down</text>
+
+        <!-- Memory DIMM -->
+        <rect x="180" y="220" width="110" height="38" rx="4" fill="rgba(0,153,255,.07)" stroke="#0077cc" stroke-width="1"/>
+        <text x="235" y="236" fill="#4499ff" font-size="9" text-anchor="middle" font-weight="700">DRAM DIMM</text>
+        <text x="235" y="250" fill="#4499ff" font-size="8" text-anchor="middle" opacity=".6">DDR5</text>
+
+        <!-- Connector lines: RC → PCIe bus -->
+        <line x1="240" y1="190" x2="240" y2="270" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+        <!-- OS → Driver -->
+        <line x1="430" y1="120" x2="430" y2="136" stroke="#00cc66" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- Driver → RC conceptual -->
+        <line x1="330" y1="161" x2="295" y2="161" stroke="#ff6b35" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+        <!-- Memory ctrl → DRAM -->
+        <line x1="168" y1="200" x2="235" y2="220" stroke="#0099ff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+        <!-- PHY → devices (up arrows from devices to PHY) -->
+        <line x1="105" y1="380" x2="105" y2="343" stroke="#aa44ff" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-p)"/>
+        <line x1="255" y1="380" x2="255" y2="343" stroke="#0099ff" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-b)"/>
+        <line x1="405" y1="380" x2="405" y2="343" stroke="#00ff88" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+        <line x1="555" y1="380" x2="555" y2="343" stroke="#ffcc00" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+        <line x1="705" y1="380" x2="705" y2="343" stroke="#00d4ff" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+        <!-- LEGEND -->
+        <rect x="580" y="30" width="210" height="100" rx="6" fill="rgba(13,21,32,.8)" stroke="#1a2d4a" stroke-width="1"/>
+        <text x="595" y="50" fill="#4d6b8a" font-size="9" letter-spacing="1.5">LEGEND</text>
+        <rect x="595" y="62" width="12" height="8" fill="rgba(0,212,255,.5)" rx="1"/>
+        <text x="613" y="71" fill="#8ba4c8" font-size="10">PCIe Transaction</text>
+        <rect x="595" y="82" width="12" height="8" fill="rgba(170,68,255,.5)" rx="1"/>
+        <text x="613" y="91" fill="#8ba4c8" font-size="10">CXL Protocol</text>
+        <rect x="595" y="102" width="12" height="8" fill="rgba(255,107,53,.5)" rx="1"/>
+        <text x="613" y="111" fill="#8ba4c8" font-size="10">Software Path</text>
+        <rect x="595" y="122" width="12" height="8" fill="rgba(255,107,53,.8)" rx="1"/>
+        <text x="613" y="131" fill="#ff6b35" font-size="10" font-weight="700">← PHY (あなたのIP)</text>
+
+        <!-- Speed labels -->
+        <text x="415" y="261" fill="#0099ff" font-size="8" text-anchor="middle" opacity=".6">Gen5: 32GT/s/lane  |  Gen6: 64GT/s/lane (PAM4)</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Quick compare table -->
+  <div class="card">
+    <div class="card-title"><span class="icon">≡</span>PCIe vs CXL クイック比較</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th><span class="tag tag-pcie">PCIe</span></th>
+          <th><span class="tag tag-cxl">CXL</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>主な用途</td><td>I/Oデバイス接続（GPU/SSD/NIC）</td><td>メモリ拡張・キャッシュ一貫性</td></tr>
+        <tr><td>物理層</td><td>PCIe PHY（SerDes）</td><td>PCIeと共通（再利用）</td></tr>
+        <tr><td>プロトコル</td><td>TLP / DLLP / PLP</td><td>CXL.io + CXL.cache + CXL.mem</td></tr>
+        <tr><td>アドレス空間</td><td>MMIO / I/O / Config</td><td>Host Physical Address (HPA)</td></tr>
+        <tr><td>キャッシュ一貫性</td><td>なし（ソフトウェア管理）</td><td>あり（ハードウェア自動管理）</td></tr>
+        <tr><td>レイテンシ重視度</td><td>中</td><td>非常に高い（DRAM代替）</td></tr>
+        <tr><td>Gen世代</td><td>Gen1〜Gen6</td><td>CXL 1.1（Gen5）〜3.0（Gen6）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== PAGE: PCIe LAYERS ========== -->
+<div id="page-pcie-layers" class="page">
+  <div class="page-title">PCIe プロトコル層スタック</div>
+  <div class="page-subtitle">各レイヤをクリックすると詳細説明が表示されます。PHY視点から「自分の上に何があるか」を理解しましょう。</div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">≡</span>レイヤ構造（クリックして詳細）</div>
+      <div class="layer-stack">
+        <div class="layer layer-app" onclick="showLayerInfo('app')">
+          <span>Application Layer</span>
+          <span class="layer-desc">アプリ・CUDA / NVMe-cmd</span>
+        </div>
+        <div class="layer layer-os" onclick="showLayerInfo('os')">
+          <span>OS / Software Stack</span>
+          <span class="layer-desc">Kernel / Driver framework</span>
+        </div>
+        <div class="layer layer-drv" onclick="showLayerInfo('drv')">
+          <span>Device Driver</span>
+          <span class="layer-desc">PCIe enumeration / IRQ</span>
+        </div>
+        <div style="padding:4px 0;text-align:center;font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;">─── ソフトウェア / ハードウェア境界 ───</div>
+        <div class="layer layer-ll" onclick="showLayerInfo('rc')">
+          <span>Root Complex / Endpoint</span>
+          <span class="layer-desc">PCIe Controller HW</span>
+        </div>
+        <div class="layer layer-tl" onclick="showLayerInfo('tl')">
+          <span>Transaction Layer (TL)</span>
+          <span class="layer-desc">TLP生成・QoS・フロー制御</span>
+        </div>
+        <div class="layer layer-dl" onclick="showLayerInfo('dl')">
+          <span>Data Link Layer (DLL)</span>
+          <span class="layer-desc">ACK/NAK・LCRC・リトライ</span>
+        </div>
+        <div class="layer layer-pl" onclick="showLayerInfo('pl')" style="border:2px solid rgba(255,107,53,.5);">
+          <span>⚡ Physical Layer (PL)</span>
+          <span class="layer-desc">← あなたのIP担当領域</span>
+        </div>
+        <div style="margin-top:8px;padding:8px 20px;background:rgba(255,107,53,.06);border:1px dashed rgba(255,107,53,.3);border-radius:4px;font-size:11px;color:#ff8855;text-align:center;">
+          SerDes → 8b/10b(Gen1-2) / 128b/130b(Gen3+) / PAM4(Gen6)
+        </div>
+      </div>
+      <div class="info-panel" id="layerInfo">
+        <h3 style="color:var(--text3)">レイヤを選択してください</h3>
+        <p style="color:var(--text3)">上のスタック図の各レイヤをクリックすると詳細な説明が表示されます。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">▶</span>TLP パケット構造</div>
+      <div class="diagram-wrap" style="padding:16px;">
+        <svg width="100%" viewBox="0 0 420 280" style="max-width:420px;display:block;margin:0 auto;">
+          <!-- TLP packet -->
+          <rect x="10" y="20" width="400" height="40" rx="3" fill="rgba(0,212,255,.15)" stroke="#00d4ff" stroke-width="1.5"/>
+          <text x="210" y="46" fill="#00d4ff" font-size="12" text-anchor="middle" font-weight="700">Transaction Layer Packet (TLP)</text>
+
+          <!-- Fields -->
+          <rect x="10" y="75" width="90" height="36" rx="2" fill="rgba(0,153,255,.2)" stroke="#0099ff" stroke-width="1"/>
+          <text x="55" y="91" fill="#4db8ff" font-size="10" text-anchor="middle" font-weight="700">Header</text>
+          <text x="55" y="104" fill="#4db8ff" font-size="8" text-anchor="middle">3 or 4 DW</text>
+
+          <rect x="108" y="75" width="200" height="36" rx="2" fill="rgba(170,68,255,.15)" stroke="#aa44ff" stroke-width="1"/>
+          <text x="208" y="91" fill="#cc88ff" font-size="10" text-anchor="middle" font-weight="700">Data Payload</text>
+          <text x="208" y="104" fill="#cc88ff" font-size="8" text-anchor="middle">0〜4096 Bytes</text>
+
+          <rect x="316" y="75" width="94" height="36" rx="2" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+          <text x="363" y="91" fill="#00cc66" font-size="10" text-anchor="middle" font-weight="700">ECRC</text>
+          <text x="363" y="104" fill="#00cc66" font-size="8" text-anchor="middle">Optional</text>
+
+          <!-- Header breakdown -->
+          <text x="10" y="135" fill="#4d6b8a" font-size="9" letter-spacing="1">HEADER FIELDS (3DW例):</text>
+
+          <rect x="10" y="145" width="60" height="28" rx="2" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="40" y="159" fill="#00d4ff" font-size="9" text-anchor="middle">Type</text>
+          <text x="40" y="170" fill="#00d4ff" font-size="7" text-anchor="middle">Fmt/Type</text>
+
+          <rect x="76" y="145" width="60" height="28" rx="2" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="106" y="159" fill="#00d4ff" font-size="9" text-anchor="middle">Length</text>
+          <text x="106" y="170" fill="#00d4ff" font-size="7" text-anchor="middle">10 bits</text>
+
+          <rect x="142" y="145" width="80" height="28" rx="2" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="182" y="159" fill="#00d4ff" font-size="9" text-anchor="middle">Requester ID</text>
+          <text x="182" y="170" fill="#00d4ff" font-size="7" text-anchor="middle">Bus:Dev:Func</text>
+
+          <rect x="228" y="145" width="70" height="28" rx="2" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="263" y="159" fill="#00d4ff" font-size="9" text-anchor="middle">Tag</text>
+          <text x="263" y="170" fill="#00d4ff" font-size="7" text-anchor="middle">8/10 bits</text>
+
+          <rect x="304" y="145" width="106" height="28" rx="2" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="357" y="159" fill="#00d4ff" font-size="9" text-anchor="middle">Address</text>
+          <text x="357" y="170" fill="#00d4ff" font-size="7" text-anchor="middle">32 or 64 bit</text>
+
+          <!-- TLP types -->
+          <text x="10" y="200" fill="#4d6b8a" font-size="9" letter-spacing="1">主要 TLP タイプ:</text>
+          <rect x="10" y="210" width="80" height="22" rx="3" fill="rgba(0,153,255,.15)" stroke="#0099ff" stroke-width="1"/>
+          <text x="50" y="225" fill="#4db8ff" font-size="9" text-anchor="middle">MRd (Read)</text>
+          <rect x="98" y="210" width="80" height="22" rx="3" fill="rgba(170,68,255,.15)" stroke="#aa44ff" stroke-width="1"/>
+          <text x="138" y="225" fill="#cc88ff" font-size="9" text-anchor="middle">MWr (Write)</text>
+          <rect x="186" y="210" width="80" height="22" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+          <text x="226" y="225" fill="#00cc66" font-size="9" text-anchor="middle">Cpl (完了)</text>
+          <rect x="274" y="210" width="80" height="22" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="314" y="225" fill="#ffcc00" font-size="9" text-anchor="middle">Msg (割り込み)</text>
+
+          <!-- DLL wrapping -->
+          <rect x="10" y="245" width="400" height="28" rx="3" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="30" y="256" fill="#4d6b8a" font-size="8">DLL: </text>
+          <text x="56" y="256" fill="#8ba4c8" font-size="8">Sequence # (12bit)</text>
+          <text x="200" y="256" fill="#8ba4c8" font-size="8">TLP本体</text>
+          <text x="280" y="256" fill="#8ba4c8" font-size="8">LCRC (32bit CRC)</text>
+          <text x="30" y="268" fill="#4d6b8a" font-size="8">PL: </text>
+          <text x="56" y="268" fill="#ff8855" font-size="8">SDP/STP framing → 8b/10b or 128b/130b encode → Scramble → SerDes TX</text>
+        </svg>
+      </div>
+
+      <div class="card-title" style="margin-top:20px;"><span class="icon">⚡</span>PCIe Gen 世代比較</div>
+      <table class="data-table">
+        <thead><tr><th>Gen</th><th>転送速度</th><th>エンコード</th><th>実効帯域(x16)</th></tr></thead>
+        <tbody>
+          <tr><td>Gen1</td><td>2.5 GT/s</td><td>8b/10b</td><td>4 GB/s</td></tr>
+          <tr><td>Gen2</td><td>5 GT/s</td><td>8b/10b</td><td>8 GB/s</td></tr>
+          <tr><td>Gen3</td><td>8 GT/s</td><td>128b/130b</td><td>~16 GB/s</td></tr>
+          <tr><td>Gen4</td><td>16 GT/s</td><td>128b/130b</td><td>~32 GB/s</td></tr>
+          <tr><td style="color:#0099ff;font-weight:700;">Gen5</td><td>32 GT/s</td><td>128b/130b</td><td>~64 GB/s</td></tr>
+          <tr><td style="color:#aa44ff;font-weight:700;">Gen6</td><td>64 GT/s</td><td>PAM4 + FLIT</td><td>~128 GB/s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: HOST-DEVICE ========== -->
+<div id="page-host-device" class="page">
+  <div class="page-title">Host と Device の関係</div>
+  <div class="page-subtitle">Root Complex（RC）がHostとして機能し、EndpointデバイスをPCIe空間に配置します。</div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⊞</span>Host (Root Complex) ↔ Device (Endpoint) 通信モデル</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 860 400" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- Host side -->
+        <rect x="20" y="20" width="240" height="340" rx="8" fill="none" stroke="#1a3a5c" stroke-width="1.5"/>
+        <text x="140" y="42" fill="#4d6b8a" font-size="10" text-anchor="middle" letter-spacing="2">HOST SIDE</text>
+
+        <rect x="36" y="54" width="208" height="50" rx="4" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+        <text x="140" y="74" fill="#ffcc00" font-size="12" text-anchor="middle" font-weight="700">CPU</text>
+        <text x="140" y="91" fill="#ffcc00" font-size="9" text-anchor="middle" opacity=".7">物理アドレス空間を管理</text>
+
+        <rect x="36" y="118" width="208" height="50" rx="4" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="140" y="138" fill="#00cc66" font-size="12" text-anchor="middle" font-weight="700">OS / Kernel</text>
+        <text x="140" y="155" fill="#00cc66" font-size="9" text-anchor="middle" opacity=".7">PCIe Config Space 読み書き</text>
+
+        <rect x="36" y="182" width="208" height="50" rx="4" fill="rgba(255,107,53,.1)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="140" y="202" fill="#ff6b35" font-size="12" text-anchor="middle" font-weight="700">Device Driver</text>
+        <text x="140" y="219" fill="#ff6b35" font-size="9" text-anchor="middle" opacity=".7">BARにMMIO、DMAを発行</text>
+
+        <rect x="36" y="246" width="208" height="50" rx="4" fill="rgba(0,212,255,.12)" stroke="#00d4ff" stroke-width="1.5"/>
+        <text x="140" y="266" fill="#00d4ff" font-size="12" text-anchor="middle" font-weight="700">Root Complex</text>
+        <text x="140" y="283" fill="#00d4ff" font-size="9" text-anchor="middle" opacity=".7">TLP生成・BARデコード</text>
+
+        <rect x="36" y="310" width="208" height="38" rx="4" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="140" y="333" fill="#ff8855" font-size="11" text-anchor="middle" font-weight="700">PCIe PHY (Root)</text>
+
+        <!-- PCIe link in middle -->
+        <rect x="290" y="160" width="280" height="60" rx="6" fill="rgba(0,153,255,.07)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="430" y="186" fill="#0099ff" font-size="12" text-anchor="middle" font-weight="700">PCIe Link</text>
+        <text x="430" y="204" fill="#0099ff" font-size="9" text-anchor="middle" opacity=".7">Differential Pair (TX/RX lanes)</text>
+
+        <!-- Arrows on link -->
+        <path d="M295,180 L565,180" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+        <text x="430" y="175" fill="#00d4ff" font-size="8" text-anchor="middle">MRd / MWr / Cpl →</text>
+        <path d="M565,210 L295,210" stroke="#aa44ff" stroke-width="1.5" marker-end="url(#arr-p)"/>
+        <text x="430" y="225" fill="#aa44ff" font-size="8" text-anchor="middle">← Cpl (Read data)</text>
+
+        <!-- Device side -->
+        <rect x="600" y="20" width="240" height="340" rx="8" fill="none" stroke="#2a1a5c" stroke-width="1.5"/>
+        <text x="720" y="42" fill="#6d5a8a" font-size="10" text-anchor="middle" letter-spacing="2">DEVICE SIDE</text>
+
+        <rect x="616" y="54" width="208" height="50" rx="4" fill="rgba(170,68,255,.12)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="720" y="74" fill="#cc88ff" font-size="12" text-anchor="middle" font-weight="700">Device Function</text>
+        <text x="720" y="91" fill="#cc88ff" font-size="9" text-anchor="middle" opacity=".7">GPU Core / Flash Ctrl / MAC</text>
+
+        <rect x="616" y="118" width="208" height="50" rx="4" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="720" y="138" fill="#cc88ff" font-size="12" text-anchor="middle" font-weight="700">PCIe Endpoint Core</text>
+        <text x="720" y="155" fill="#cc88ff" font-size="9" text-anchor="middle" opacity=".7">TLP処理・Completion生成</text>
+
+        <rect x="616" y="182" width="208" height="50" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="720" y="202" fill="#4db8ff" font-size="12" text-anchor="middle" font-weight="700">Config Space (256B)</text>
+        <text x="720" y="219" fill="#4db8ff" font-size="9" text-anchor="middle" opacity=".7">Vendor/Device ID, BAR[0-5]</text>
+
+        <rect x="616" y="246" width="208" height="50" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="720" y="266" fill="#4db8ff" font-size="12" text-anchor="middle" font-weight="700">BAR (Base Addr Reg)</text>
+        <text x="720" y="283" fill="#4db8ff" font-size="9" text-anchor="middle" opacity=".7">MMIOウィンドウ宣言</text>
+
+        <rect x="616" y="310" width="208" height="38" rx="4" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="720" y="333" fill="#ff8855" font-size="11" text-anchor="middle" font-weight="700">PCIe PHY (Device)</text>
+
+        <!-- Connect PHY to link -->
+        <line x1="244" y1="329" x2="290" y2="200" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <line x1="616" y1="329" x2="570" y2="200" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5,3"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">⊞</span>Config Space (BDF アドレッシング)</div>
+      <div class="diagram-wrap" style="padding:16px;">
+        <svg width="100%" viewBox="0 0 400 200" style="max-width:400px;display:block;margin:0 auto;">
+          <!-- BDF breakdown -->
+          <text x="10" y="20" fill="#4d6b8a" font-size="9" letter-spacing="1.5">PCIeアドレス = Bus[7:0] : Device[4:0] : Function[2:0]</text>
+          <rect x="10" y="30" width="120" height="35" rx="3" fill="rgba(0,153,255,.15)" stroke="#0099ff" stroke-width="1"/>
+          <text x="70" y="44" fill="#4db8ff" font-size="10" text-anchor="middle" font-weight="700">Bus Number</text>
+          <text x="70" y="58" fill="#4db8ff" font-size="8" text-anchor="middle">0〜255 (8bit)</text>
+          <rect x="138" y="30" width="100" height="35" rx="3" fill="rgba(170,68,255,.15)" stroke="#aa44ff" stroke-width="1"/>
+          <text x="188" y="44" fill="#cc88ff" font-size="10" text-anchor="middle" font-weight="700">Device</text>
+          <text x="188" y="58" fill="#cc88ff" font-size="8" text-anchor="middle">0〜31 (5bit)</text>
+          <rect x="246" y="30" width="100" height="35" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+          <text x="296" y="44" fill="#00cc66" font-size="10" text-anchor="middle" font-weight="700">Function</text>
+          <text x="296" y="58" fill="#00cc66" font-size="8" text-anchor="middle">0〜7 (3bit)</text>
+
+          <!-- Config space layout -->
+          <text x="10" y="95" fill="#4d6b8a" font-size="9" letter-spacing="1.5">CONFIG SPACE (最初の64byte / Type 0):</text>
+          <rect x="10" y="105" width="80" height="24" rx="2" fill="rgba(0,153,255,.12)" stroke="#0099ff" stroke-width="1"/>
+          <text x="50" y="121" fill="#4db8ff" font-size="8" text-anchor="middle">Vendor ID</text>
+          <rect x="95" y="105" width="80" height="24" rx="2" fill="rgba(0,153,255,.12)" stroke="#0099ff" stroke-width="1"/>
+          <text x="135" y="121" fill="#4db8ff" font-size="8" text-anchor="middle">Device ID</text>
+          <rect x="180" y="105" width="80" height="24" rx="2" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="220" y="121" fill="#ffcc00" font-size="8" text-anchor="middle">Status/Cmd</text>
+          <rect x="265" y="105" width="80" height="24" rx="2" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+          <text x="305" y="121" fill="#00cc66" font-size="8" text-anchor="middle">Class Code</text>
+
+          <rect x="10" y="133" width="335" height="24" rx="2" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1.5"/>
+          <text x="177" y="149" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">BAR0〜BAR5  ← ドライバがMMIOウィンドウを確保する</text>
+
+          <rect x="10" y="161" width="160" height="24" rx="2" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="90" y="177" fill="#00d4ff" font-size="8" text-anchor="middle">Subsystem Vendor/ID</text>
+          <rect x="180" y="161" width="165" height="24" rx="2" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+          <text x="263" y="177" fill="#cc88ff" font-size="8" text-anchor="middle">Capabilities Pointer → PCIe Cap</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">▶</span>DMA (Direct Memory Access) フロー</div>
+      <div class="diagram-wrap" style="padding:16px;">
+        <svg width="100%" viewBox="0 0 400 220" style="max-width:400px;display:block;margin:0 auto;">
+          <!-- DRAM -->
+          <rect x="20" y="20" width="100" height="50" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+          <text x="70" y="42" fill="#4db8ff" font-size="11" text-anchor="middle" font-weight="700">Host DRAM</text>
+          <text x="70" y="58" fill="#4db8ff" font-size="8" text-anchor="middle">物理アドレス空間</text>
+
+          <!-- IOMMU -->
+          <rect x="150" y="20" width="100" height="50" rx="4" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="200" y="42" fill="#ffcc00" font-size="11" text-anchor="middle" font-weight="700">IOMMU</text>
+          <text x="200" y="58" fill="#ffcc00" font-size="8" text-anchor="middle">アドレス変換/保護</text>
+
+          <!-- RC -->
+          <rect x="280" y="20" width="100" height="50" rx="4" fill="rgba(0,212,255,.12)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="330" y="42" fill="#00d4ff" font-size="11" text-anchor="middle" font-weight="700">Root Complex</text>
+          <text x="330" y="58" fill="#00d4ff" font-size="8" text-anchor="middle">TLP生成/解析</text>
+
+          <!-- Device -->
+          <rect x="150" y="150" width="100" height="50" rx="4" fill="rgba(170,68,255,.12)" stroke="#aa44ff" stroke-width="1.5"/>
+          <text x="200" y="172" fill="#cc88ff" font-size="11" text-anchor="middle" font-weight="700">Device DMA</text>
+          <text x="200" y="188" fill="#cc88ff" font-size="8" text-anchor="middle">Engine</text>
+
+          <!-- Arrows -->
+          <path d="M120,45 L150,45" stroke="#0099ff" stroke-width="1.5" marker-end="url(#arr-b)"/>
+          <path d="M250,45 L280,45" stroke="#ffcc00" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- DMA write flow -->
+          <path d="M200,150 L200,70" stroke="#aa44ff" stroke-width="1.5" marker-end="url(#arr-p)"/>
+          <text x="215" y="115" fill="#aa44ff" font-size="8">① DMA Write</text>
+          <text x="215" y="127" fill="#aa44ff" font-size="8">MWr TLP</text>
+
+          <path d="M330,70 L330,150" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+          <!-- Labels -->
+          <text x="10" y="120" fill="#4d6b8a" font-size="8">② IOVAを物理</text>
+          <text x="10" y="132" fill="#4d6b8a" font-size="8">アドレスに変換</text>
+
+          <text x="10" y="175" fill="#8ba4c8" font-size="8">DMAフロー:</text>
+          <text x="10" y="188" fill="#8ba4c8" font-size="8">デバイスがHost DRAMへ直接</text>
+          <text x="10" y="200" fill="#8ba4c8" font-size="8">MWr TLPを発行 → CPU不要</text>
+        </svg>
+      </div>
+      <div class="highlight">
+        <strong>PHY担当視点:</strong> DMAもMRdもすべてTLPとして物理層を通過します。バス幅(x1,x4,x8,x16)とGen速度の組み合わせが実効DMA帯域を決定します。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: DRIVER ========== -->
+<div id="page-driver" class="page">
+  <div class="page-title">デバイスドライバの仕組み</div>
+  <div class="page-subtitle">ドライバはOSとハードウェアの橋渡し役。PCIeでは「Enumeration→BARマッピング→割り込み設定」の3ステップが基本。</div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">▶</span>PCIe Enumeration フロー（起動時）</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 860 260" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- Steps -->
+        <rect x="10" y="20" width="130" height="60" rx="5" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1.5"/>
+        <text x="75" y="46" fill="#00cc66" font-size="11" text-anchor="middle" font-weight="700">① BIOS/UEFI</text>
+        <text x="75" y="62" fill="#00cc66" font-size="8" text-anchor="middle">Bus Scan</text>
+        <text x="75" y="74" fill="#00cc66" font-size="8" text-anchor="middle">Bus番号割り当て</text>
+
+        <rect x="168" y="20" width="130" height="60" rx="5" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1.5"/>
+        <text x="233" y="46" fill="#ffcc00" font-size="11" text-anchor="middle" font-weight="700">② OS Kernel</text>
+        <text x="233" y="62" fill="#ffcc00" font-size="8" text-anchor="middle">Config Space読み出し</text>
+        <text x="233" y="74" fill="#ffcc00" font-size="8" text-anchor="middle">デバイスリスト生成</text>
+
+        <rect x="326" y="20" width="130" height="60" rx="5" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="391" y="46" fill="#4db8ff" font-size="11" text-anchor="middle" font-weight="700">③ BARサイズ確認</text>
+        <text x="391" y="62" fill="#4db8ff" font-size="8" text-anchor="middle">BAR←0xFFFFFFFF</text>
+        <text x="391" y="74" fill="#4db8ff" font-size="8" text-anchor="middle">読み返しでサイズ判定</text>
+
+        <rect x="484" y="20" width="130" height="60" rx="5" fill="rgba(170,68,255,.12)" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="549" y="46" fill="#cc88ff" font-size="11" text-anchor="middle" font-weight="700">④ BAR割り当て</text>
+        <text x="549" y="62" fill="#cc88ff" font-size="8" text-anchor="middle">物理アドレスを書き込み</text>
+        <text x="549" y="74" fill="#cc88ff" font-size="8" text-anchor="middle">MMIO領域確保</text>
+
+        <rect x="642" y="20" width="130" height="60" rx="5" fill="rgba(255,107,53,.1)" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="707" y="46" fill="#ff8855" font-size="11" text-anchor="middle" font-weight="700">⑤ Driver Probe</text>
+        <text x="707" y="62" fill="#ff8855" font-size="8" text-anchor="middle">vendor:device IDで</text>
+        <text x="707" y="74" fill="#ff8855" font-size="8" text-anchor="middle">ドライバ照合・ロード</text>
+
+        <!-- Arrows -->
+        <path d="M140,50 L168,50" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M298,50 L326,50" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M456,50 L484,50" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M614,50 L642,50" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- Detail notes -->
+        <text x="10" y="105" fill="#4d6b8a" font-size="9" letter-spacing="1.5">DRIVER OPERATIONS AFTER PROBE:</text>
+
+        <rect x="10" y="115" width="180" height="50" rx="4" fill="rgba(255,107,53,.07)" stroke="rgba(255,107,53,.3)" stroke-width="1"/>
+        <text x="100" y="133" fill="#ff8855" font-size="10" text-anchor="middle" font-weight="700">ioremap()</text>
+        <text x="100" y="148" fill="#ff8855" font-size="8" text-anchor="middle">BARの物理アドレス→</text>
+        <text x="100" y="160" fill="#ff8855" font-size="8" text-anchor="middle">カーネル仮想アドレス変換</text>
+
+        <rect x="204" y="115" width="180" height="50" rx="4" fill="rgba(0,204,102,.07)" stroke="rgba(0,204,102,.3)" stroke-width="1"/>
+        <text x="294" y="133" fill="#00cc66" font-size="10" text-anchor="middle" font-weight="700">MSI / MSI-X 設定</text>
+        <text x="294" y="148" fill="#00cc66" font-size="8" text-anchor="middle">割り込みベクタ割り当て</text>
+        <text x="294" y="160" fill="#00cc66" font-size="8" text-anchor="middle">MsgAddrをデバイスに通知</text>
+
+        <rect x="398" y="115" width="180" height="50" rx="4" fill="rgba(0,153,255,.07)" stroke="rgba(0,153,255,.3)" stroke-width="1"/>
+        <text x="488" y="133" fill="#4db8ff" font-size="10" text-anchor="middle" font-weight="700">DMAバッファ確保</text>
+        <text x="488" y="148" fill="#4db8ff" font-size="8" text-anchor="middle">dma_alloc_coherent()</text>
+        <text x="488" y="160" fill="#4db8ff" font-size="8" text-anchor="middle">IOMMU変換テーブル設定</text>
+
+        <rect x="592" y="115" width="180" height="50" rx="4" fill="rgba(170,68,255,.07)" stroke="rgba(170,68,255,.3)" stroke-width="1"/>
+        <text x="682" y="133" fill="#cc88ff" font-size="10" text-anchor="middle" font-weight="700">レジスタ初期化</text>
+        <text x="682" y="148" fill="#cc88ff" font-size="8" text-anchor="middle">writel() / readl()</text>
+        <text x="682" y="160" fill="#cc88ff" font-size="8" text-anchor="middle">MMIOレジスタをR/W</text>
+
+        <!-- Linux specific note -->
+        <rect x="10" y="185" width="840" height="58" rx="4" fill="rgba(0,0,0,.2)" stroke="#1a2d4a" stroke-width="1"/>
+        <text x="20" y="202" fill="#4d6b8a" font-size="9" letter-spacing="1">Linux PCIe ドライバの基本構造:</text>
+        <text x="20" y="220" fill="#8ba4c8" font-size="9">static const struct pci_device_id my_pci_ids[] = { { PCI_DEVICE(0x1234, 0x5678) }, { 0 } };</text>
+        <text x="20" y="236" fill="#8ba4c8" font-size="9">static struct pci_driver my_driver = { .name = "mydev", .id_table = my_pci_ids, .probe = my_probe, .remove = my_remove };</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">⚡</span>割り込み方式：INTx vs MSI vs MSI-X</div>
+      <table class="data-table">
+        <thead><tr><th>方式</th><th>仕組み</th><th>最大数</th><th>特徴</th></tr></thead>
+        <tbody>
+          <tr><td>INTx</td><td>サイドバンド信号<br>INTA#〜INTD#</td><td>4</td><td>レガシー。共有で遅延大</td></tr>
+          <tr><td style="color:#0099ff;">MSI</td><td>MWr TLPで<br>割り込み通知</td><td>32</td><td>ソフトウェア的割り込み</td></tr>
+          <tr><td style="color:#aa44ff;">MSI-X</td><td>MSI拡張版<br>ベクタテーブル</td><td>2048</td><td>SR-IOV・高性能NICに必須</td></tr>
+        </tbody>
+      </table>
+      <div class="highlight ok">
+        <strong>重要:</strong> MSI/MSI-XはPCIeのMWr TLPとして実装されます。PHY視点では通常のデータパケットと区別できません。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">≡</span>SR-IOV (Single Root I/O Virtualization)</div>
+      <div class="diagram-wrap" style="padding:14px;">
+        <svg width="100%" viewBox="0 0 380 200" style="max-width:380px;display:block;margin:0 auto;">
+          <!-- PF -->
+          <rect x="10" y="10" width="100" height="40" rx="4" fill="rgba(255,204,0,.12)" stroke="#ffcc00" stroke-width="1.5"/>
+          <text x="60" y="27" fill="#ffcc00" font-size="10" text-anchor="middle" font-weight="700">PF (Physical)</text>
+          <text x="60" y="42" fill="#ffcc00" font-size="8" text-anchor="middle">Function 0</text>
+
+          <!-- VFs -->
+          <rect x="130" y="10" width="80" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+          <text x="170" y="27" fill="#4db8ff" font-size="10" text-anchor="middle" font-weight="700">VF 0</text>
+          <text x="170" y="40" fill="#4db8ff" font-size="8" text-anchor="middle">VM1用</text>
+          <rect x="220" y="10" width="80" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+          <text x="260" y="27" fill="#cc88ff" font-size="10" text-anchor="middle" font-weight="700">VF 1</text>
+          <text x="260" y="40" fill="#cc88ff" font-size="8" text-anchor="middle">VM2用</text>
+          <rect x="310" y="10" width="60" height="35" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+          <text x="340" y="27" fill="#00cc66" font-size="10" text-anchor="middle" font-weight="700">VF N</text>
+
+          <!-- Hypervisor -->
+          <rect x="10" y="70" width="360" height="35" rx="4" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1"/>
+          <text x="190" y="93" fill="#00d4ff" font-size="11" text-anchor="middle" font-weight="700">Hypervisor (QEMU/KVM)</text>
+
+          <!-- Lines PF/VF → hypervisor -->
+          <line x1="60" y1="50" x2="60" y2="70" stroke="#ffcc00" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="170" y1="45" x2="170" y2="70" stroke="#0099ff" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="260" y1="45" x2="260" y2="70" stroke="#aa44ff" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="340" y1="45" x2="340" y2="70" stroke="#00cc66" stroke-width="1" stroke-dasharray="3,2"/>
+
+          <!-- PCIe RC -->
+          <rect x="10" y="125" width="360" height="35" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+          <text x="190" y="148" fill="#4db8ff" font-size="11" text-anchor="middle" font-weight="700">Root Complex + IOMMU</text>
+          <line x1="190" y1="105" x2="190" y2="125" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+          <text x="10" y="178" fill="#8ba4c8" font-size="8">各VFは独立したBDF、Config Space、BARを持つ。PCIe PHY上は同一リンクを共有。</text>
+          <text x="10" y="192" fill="#8ba4c8" font-size="8">DMAアドレス保護はIOMMUが担当。最大256 VF/PFがPCIe Spec上の上限。</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: BRIDGE/NOC ========== -->
+<div id="page-bridge-noc" class="page">
+  <div class="page-title">Bridge / Switch / NoC の構造</div>
+  <div class="page-subtitle">PCIeトポロジを拡張するBridgeと、SoC内部のNetwork on Chip (NoC)の関係を理解します。</div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⊞</span>PCIe トポロジと Switch 構造</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 860 380" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- RC at top -->
+        <rect x="330" y="10" width="200" height="45" rx="5" fill="rgba(0,212,255,.12)" stroke="#00d4ff" stroke-width="2"/>
+        <text x="430" y="30" fill="#00d4ff" font-size="13" text-anchor="middle" font-weight="700">Root Complex (RC)</text>
+        <text x="430" y="46" fill="#00d4ff" font-size="9" text-anchor="middle" opacity=".7">Bus 0 (Root Bus)</text>
+
+        <!-- Line to switch -->
+        <line x1="430" y1="55" x2="430" y2="90" stroke="#0099ff" stroke-width="2"/>
+        <text x="448" y="76" fill="#0099ff" font-size="8">Upstream Port</text>
+
+        <!-- PCIe Switch -->
+        <rect x="200" y="90" width="460" height="70" rx="6" fill="rgba(0,153,255,.08)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="430" y="116" fill="#4db8ff" font-size="14" text-anchor="middle" font-weight="700">PCIe Switch</text>
+        <text x="430" y="133" fill="#4db8ff" font-size="9" text-anchor="middle" opacity=".7">Virtual PCI-to-PCI Bridges + Internal Crossbar</text>
+        <text x="430" y="148" fill="#4db8ff" font-size="9" text-anchor="middle" opacity=".7">Bus 1 (Primary) / Bus 2,3,4... (Secondary)</text>
+
+        <!-- Downstream ports lines -->
+        <line x1="270" y1="160" x2="270" y2="190" stroke="#0099ff" stroke-width="1.5"/>
+        <line x1="430" y1="160" x2="430" y2="190" stroke="#0099ff" stroke-width="1.5"/>
+        <line x1="590" y1="160" x2="590" y2="190" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="270" y="178" fill="#4d6b8a" font-size="8" text-anchor="middle">DP0</text>
+        <text x="430" y="178" fill="#4d6b8a" font-size="8" text-anchor="middle">DP1</text>
+        <text x="590" y="178" fill="#4d6b8a" font-size="8" text-anchor="middle">DP2</text>
+
+        <!-- End devices -->
+        <rect x="180" y="190" width="160" height="55" rx="5" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="260" y="214" fill="#cc88ff" font-size="12" text-anchor="middle" font-weight="700">GPU (EP)</text>
+        <text x="260" y="230" fill="#cc88ff" font-size="8" text-anchor="middle">Bus 2, Dev 0</text>
+        <text x="260" y="242" fill="#cc88ff" font-size="8" text-anchor="middle">CXL.cache capable</text>
+
+        <rect x="350" y="190" width="160" height="55" rx="5" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="430" y="214" fill="#4db8ff" font-size="12" text-anchor="middle" font-weight="700">NVMe SSD (EP)</text>
+        <text x="430" y="230" fill="#4db8ff" font-size="8" text-anchor="middle">Bus 3, Dev 0</text>
+        <text x="430" y="242" fill="#4db8ff" font-size="8" text-anchor="middle">x4 Gen5</text>
+
+        <rect x="520" y="190" width="160" height="55" rx="5" fill="rgba(0,204,102,.08)" stroke="#00cc66" stroke-width="1.5"/>
+        <text x="600" y="214" fill="#00cc66" font-size="12" text-anchor="middle" font-weight="700">Smart NIC (EP)</text>
+        <text x="600" y="230" fill="#00cc66" font-size="8" text-anchor="middle">Bus 4, Dev 0</text>
+        <text x="600" y="242" fill="#00cc66" font-size="8" text-anchor="middle">SR-IOV x16</text>
+
+        <!-- Bridge type label -->
+        <rect x="20" y="90" width="155" height="120" rx="5" fill="rgba(0,0,0,.2)" stroke="#1a2d4a" stroke-width="1"/>
+        <text x="30" y="108" fill="#4d6b8a" font-size="9" letter-spacing="1">Bridge Types</text>
+        <text x="30" y="126" fill="#8ba4c8" font-size="9">• P2P Bridge</text>
+        <text x="30" y="142" fill="#8ba4c8" font-size="9">  (PCIe→PCIe)</text>
+        <text x="30" y="160" fill="#8ba4c8" font-size="9">• Host Bridge</text>
+        <text x="30" y="176" fill="#8ba4c8" font-size="9">  (CPU→PCIe)</text>
+        <text x="30" y="194" fill="#8ba4c8" font-size="9">• PCIe→PCIe</text>
+        <text x="30" y="208" fill="#8ba4c8" font-size="9">  (Gen変換等)</text>
+
+        <!-- NoC section -->
+        <rect x="20" y="285" width="820" height="80" rx="6" fill="rgba(255,204,0,.05)" stroke="#ffcc00" stroke-width="1" stroke-dasharray="4,2"/>
+        <text x="430" y="305" fill="#ffcc00" font-size="11" text-anchor="middle" font-weight="700">SoC内部 NoC (Network on Chip)</text>
+
+        <rect x="40" y="315" width="120" height="35" rx="3" fill="rgba(255,107,53,.1)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="100" y="331" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">PCIe Controller</text>
+        <text x="100" y="345" fill="#ff8855" font-size="8" text-anchor="middle">↑あなたのIPの上</text>
+
+        <rect x="178" y="315" width="120" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="238" y="334" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">Memory Ctrl</text>
+
+        <rect x="316" y="315" width="120" height="35" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="376" y="334" fill="#00cc66" font-size="9" text-anchor="middle" font-weight="700">CPU Core</text>
+
+        <rect x="454" y="315" width="120" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="514" y="334" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">GPU/AI Engine</text>
+
+        <rect x="592" y="315" width="120" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="652" y="334" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">DMA Engine</text>
+
+        <rect x="730" y="315" width="90" height="35" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+        <text x="775" y="334" fill="#ffcc00" font-size="9" text-anchor="middle" font-weight="700">Other IP</text>
+
+        <!-- Lines to NoC bar -->
+        <line x1="430" y1="245" x2="430" y2="285" stroke="#ffcc00" stroke-width="1" stroke-dasharray="4,2"/>
+        <line x1="100" y1="315" x2="100" y2="285" stroke="#ff6b35" stroke-width="1" stroke-dasharray="3,2"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">≡</span>PCIe P2P (Peer-to-Peer) DMA</div>
+      <p style="font-size:12px;line-height:1.8;color:var(--text2);margin-bottom:12px;">
+        GPUとNVMe SSDが<strong style="color:var(--pcie)">ホストCPU/DRAMを経由せず</strong>直接データ転送する仕組み。PCIe Switchがトラフィックをルーティング。
+      </p>
+      <div class="diagram-wrap" style="padding:14px;">
+        <svg width="100%" viewBox="0 0 380 140" style="max-width:380px;display:block;margin:0 auto;">
+          <rect x="10" y="10" width="100" height="40" rx="4" fill="rgba(170,68,255,.12)" stroke="#aa44ff" stroke-width="1.5"/>
+          <text x="60" y="35" fill="#cc88ff" font-size="11" text-anchor="middle" font-weight="700">GPU</text>
+
+          <rect x="140" y="10" width="100" height="40" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+          <text x="190" y="35" fill="#4db8ff" font-size="10" text-anchor="middle" font-weight="700">PCIe Switch</text>
+
+          <rect x="270" y="10" width="100" height="40" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+          <text x="320" y="35" fill="#4db8ff" font-size="11" text-anchor="middle" font-weight="700">NVMe</text>
+
+          <!-- P2P arrow (bypasses RC) -->
+          <path d="M110,30 L140,30" stroke="#aa44ff" stroke-width="2" marker-end="url(#arr-p)"/>
+          <path d="M240,30 L270,30" stroke="#aa44ff" stroke-width="2" marker-end="url(#arr-p)"/>
+          <text x="190" y="68" fill="#aa44ff" font-size="8" text-anchor="middle">P2P DMA (ACS有効時)</text>
+
+          <!-- Host above (bypassed) -->
+          <rect x="140" y="90" width="100" height="35" rx="4" fill="rgba(255,204,0,.06)" stroke="rgba(255,204,0,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+          <text x="190" y="112" fill="#888" font-size="9" text-anchor="middle">Host CPU/DRAM</text>
+          <text x="190" y="128" fill="#555" font-size="8" text-anchor="middle">（迂回される）</text>
+          <line x1="190" y1="50" x2="190" y2="90" stroke="#444" stroke-width="1" stroke-dasharray="3,2"/>
+        </svg>
+      </div>
+      <div class="highlight warn">PCIe P2Pには<code>ACS (Access Control Services)</code>の設定が必要。Switch内部でルーティングが行われ、RCには到達しない。</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">⊞</span>NoC アーキテクチャとPCIeコントローラの位置</div>
+      <div class="diagram-wrap" style="padding:14px;">
+        <svg width="100%" viewBox="0 0 380 200" style="max-width:380px;display:block;margin:0 auto;">
+          <!-- NoC ring/mesh -->
+          <rect x="10" y="60" width="360" height="90" rx="6" fill="rgba(255,204,0,.04)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="190" y="78" fill="#ffcc00" font-size="9" text-anchor="middle" letter-spacing="1">NoC INTERCONNECT (AXI / TileLink / CHI)</text>
+
+          <!-- Masters on NoC -->
+          <rect x="20" y="88" width="70" height="50" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1.5"/>
+          <text x="55" y="107" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">PCIe Ctrl</text>
+          <text x="55" y="120" fill="#ff8855" font-size="7" text-anchor="middle">AXI Master</text>
+          <text x="55" y="132" fill="#ff8855" font-size="7" text-anchor="middle">+ Slave</text>
+
+          <rect x="100" y="88" width="70" height="50" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="135" y="107" fill="#ffcc00" font-size="9" text-anchor="middle" font-weight="700">CPU</text>
+          <text x="135" y="120" fill="#ffcc00" font-size="7" text-anchor="middle">AXI Master</text>
+
+          <rect x="180" y="88" width="70" height="50" rx="3" fill="rgba(0,204,102,.08)" stroke="#00cc66" stroke-width="1"/>
+          <text x="215" y="107" fill="#00cc66" font-size="9" text-anchor="middle" font-weight="700">DMA</text>
+          <text x="215" y="120" fill="#00cc66" font-size="7" text-anchor="middle">AXI Master</text>
+
+          <rect x="260" y="88" width="100" height="50" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+          <text x="310" y="107" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">Memory Ctrl</text>
+          <text x="310" y="120" fill="#4db8ff" font-size="7" text-anchor="middle">AXI Slave</text>
+          <text x="310" y="132" fill="#4db8ff" font-size="7" text-anchor="middle">DRAM</text>
+
+          <!-- PHY below PCIe ctrl -->
+          <rect x="20" y="170" width="70" height="25" rx="3" fill="rgba(255,107,53,.2)" stroke="#ff6b35" stroke-width="1.5"/>
+          <text x="55" y="186" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">PCIe PHY</text>
+          <line x1="55" y1="150" x2="55" y2="170" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- Interface label -->
+          <text x="70" y="175" fill="#4d6b8a" font-size="7">← PIPE I/F</text>
+          <text x="70" y="187" fill="#4d6b8a" font-size="7">  (あなたの領域の境界)</text>
+        </svg>
+      </div>
+      <p style="font-size:12px;line-height:1.7;color:var(--text2);margin-top:8px;">
+        PCIeコントローラはNoCの<strong style="color:var(--phy)">AXIマスタ</strong>（DMAでDRAMへ書く）かつ<strong style="color:var(--phy)">AXIスレーブ</strong>（CPUがMMIO経由でデバイスレジスタを読む）として機能します。
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: CXL ========== -->
+<div id="page-cxl" class="page">
+  <div class="page-title">CXL (Compute Express Link) 詳細</div>
+  <div class="page-subtitle">PCIe PHYを共有しながら、メモリ拡張・キャッシュ一貫性を実現する次世代プロトコル</div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⊞</span>CXL プロトコル構成</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 860 280" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- Three protocols -->
+        <rect x="10" y="20" width="250" height="160" rx="6" fill="rgba(0,153,255,.07)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="135" y="46" fill="#4db8ff" font-size="14" text-anchor="middle" font-weight="700">CXL.io</text>
+        <text x="135" y="66" fill="#4db8ff" font-size="9" text-anchor="middle" opacity=".8">PCIe互換サブプロトコル</text>
+        <text x="20" y="90" fill="#8ba4c8" font-size="9">• Config / Enumeration</text>
+        <text x="20" y="108" fill="#8ba4c8" font-size="9">• Non-coherent DMA</text>
+        <text x="20" y="126" fill="#8ba4c8" font-size="9">• MSI/MSI-X 割り込み</text>
+        <text x="20" y="144" fill="#8ba4c8" font-size="9">• 全CXLデバイスが必須実装</text>
+        <text x="20" y="162" fill="#8ba4c8" font-size="9">• PCIe TLPベース</text>
+
+        <rect x="280" y="20" width="250" height="160" rx="6" fill="rgba(170,68,255,.08)" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="405" y="46" fill="#cc88ff" font-size="14" text-anchor="middle" font-weight="700">CXL.cache</text>
+        <text x="405" y="66" fill="#cc88ff" font-size="9" text-anchor="middle" opacity=".8">デバイス→ホストキャッシュ一貫性</text>
+        <text x="290" y="90" fill="#8ba4c8" font-size="9">• デバイスがHost物理メモリを</text>
+        <text x="290" y="108" fill="#8ba4c8" font-size="9">  キャッシュする際に使用</text>
+        <text x="290" y="126" fill="#8ba4c8" font-size="9">• Snoop / Snoopable要求</text>
+        <text x="290" y="144" fill="#8ba4c8" font-size="9">• H2D Request / D2H Response</text>
+        <text x="290" y="162" fill="#8ba4c8" font-size="9">• GPU/Acceleratorが主ユーザ</text>
+
+        <rect x="550" y="20" width="300" height="160" rx="6" fill="rgba(0,255,136,.06)" stroke="#00ff88" stroke-width="1.5"/>
+        <text x="700" y="46" fill="#00ff88" font-size="14" text-anchor="middle" font-weight="700">CXL.mem</text>
+        <text x="700" y="66" fill="#00ff88" font-size="9" text-anchor="middle" opacity=".8">ホスト→デバイスメモリアクセス</text>
+        <text x="560" y="90" fill="#8ba4c8" font-size="9">• CPUがデバイス搭載メモリを直接アクセス</text>
+        <text x="560" y="108" fill="#8ba4c8" font-size="9">• Host Physical Address (HPA)空間</text>
+        <text x="560" y="126" fill="#8ba4c8" font-size="9">• M2S Req / S2M Data フロー</text>
+        <text x="560" y="144" fill="#8ba4c8" font-size="9">• DRAM拡張モジュール (Type3)</text>
+        <text x="560" y="162" fill="#8ba4c8" font-size="9">• HDM (Host-managed Device Memory)</text>
+
+        <!-- Shared PHY layer -->
+        <rect x="10" y="200" width="840" height="38" rx="4" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="430" y="217" fill="#ff8855" font-size="12" text-anchor="middle" font-weight="700">Shared PCIe PHY Layer (SerDes / PIPE Interface)</text>
+        <text x="430" y="232" fill="#ff8855" font-size="9" text-anchor="middle" opacity=".7">← CXL 1.x/2.0はGen5 PHY使用 / CXL 3.0はGen6 PAM4 PHY使用 →</text>
+
+        <!-- Flit label for Gen6 -->
+        <rect x="640" y="248" width="210" height="22" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="745" y="263" fill="#cc88ff" font-size="9" text-anchor="middle">CXL 3.0: 256byte FLITベース転送</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- CXL Type selection -->
+  <div class="card">
+    <div class="card-title"><span class="icon">▶</span>CXL デバイス Type (クリックで詳細)</div>
+    <div class="grid-3">
+      <div class="cxl-type-card" id="cxlType1" onclick="showCxlType(1)">
+        <h4>Type 1</h4>
+        <div><span class="tag tag-cxl">CXL.io</span> <span class="tag tag-cxl">CXL.cache</span></div>
+        <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.6;">デバイスがHost DRAMをキャッシュする。SmartNIC・FPGA系アクセラレータ。</p>
+      </div>
+      <div class="cxl-type-card" id="cxlType2" onclick="showCxlType(2)">
+        <h4>Type 2</h4>
+        <div><span class="tag tag-cxl">CXL.io</span> <span class="tag tag-cxl">CXL.cache</span> <span class="tag tag-cxl">CXL.mem</span></div>
+        <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.6;">双方向キャッシュ一貫性。GPU/AI加速器の典型形態。HBM等デバイスメモリ搭載。</p>
+      </div>
+      <div class="cxl-type-card" id="cxlType3" onclick="showCxlType(3)">
+        <h4>Type 3</h4>
+        <div><span class="tag tag-cxl">CXL.io</span> <span class="tag tag-cxl">CXL.mem</span></div>
+        <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.6;">メモリ拡張専用デバイス。DRAMモジュール・Persistent Memory拡張。</p>
+      </div>
+    </div>
+    <div class="info-panel" id="cxlTypeInfo" style="margin-top:16px;">
+      <h3 style="color:var(--text3)">TypeをクリックするとFLITフロー図が表示されます</h3>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">≡</span>CXL バージョン対比</div>
+      <table class="data-table">
+        <thead><tr><th>Version</th><th>PHY</th><th>主な追加機能</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>CXL 1.0/1.1</td><td>Gen5</td><td>基本Type1/2/3</td><td>単一ホスト接続</td></tr>
+          <tr><td>CXL 2.0</td><td>Gen5</td><td>Switch・Pooling・FAM</td><td>メモリプール共有</td></tr>
+          <tr><td style="color:#aa44ff;font-weight:700;">CXL 3.0</td><td>Gen6 PAM4</td><td>Multi-level Switch・P2P・Back-Invalidation</td><td>データセンター分散</td></tr>
+        </tbody>
+      </table>
+      <div class="highlight">
+        <strong>PHY視点:</strong> CXL 1.x/2.0はPCIe Gen5 PHY（NRZ, 32GT/s）を使用。CXL 3.0はGen6 PHY（PAM4, 64GT/s）に移行し、<code>FLIT (256byte)</code>ベースの転送に変わります。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">⊞</span>CXL メモリプール (CXL 2.0+)</div>
+      <div class="diagram-wrap" style="padding:14px;">
+        <svg width="100%" viewBox="0 0 380 200" style="max-width:380px;display:block;margin:0 auto;">
+          <!-- Hosts -->
+          <rect x="10" y="10" width="80" height="40" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="50" y="35" fill="#ffcc00" font-size="10" text-anchor="middle" font-weight="700">Host A</text>
+          <rect x="100" y="10" width="80" height="40" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="140" y="35" fill="#ffcc00" font-size="10" text-anchor="middle" font-weight="700">Host B</text>
+          <rect x="190" y="10" width="80" height="40" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+          <text x="230" y="35" fill="#ffcc00" font-size="10" text-anchor="middle" font-weight="700">Host C</text>
+
+          <!-- CXL Switch -->
+          <rect x="10" y="80" width="260" height="40" rx="4" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1.5"/>
+          <text x="140" y="105" fill="#cc88ff" font-size="11" text-anchor="middle" font-weight="700">CXL Switch (2.0)</text>
+
+          <!-- Lines -->
+          <line x1="50" y1="50" x2="50" y2="80" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <line x1="140" y1="50" x2="140" y2="80" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3,2"/>
+          <line x1="230" y1="50" x2="230" y2="80" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3,2"/>
+
+          <!-- Memory pool -->
+          <rect x="10" y="148" width="260" height="42" rx="4" fill="rgba(0,255,136,.07)" stroke="#00ff88" stroke-width="1.5"/>
+          <text x="140" y="166" fill="#00ff88" font-size="11" text-anchor="middle" font-weight="700">CXL Memory Pool (FAM)</text>
+          <text x="140" y="182" fill="#00ff88" font-size="8" text-anchor="middle">Fabric Attached Memory - 動的割り当て</text>
+          <line x1="140" y1="120" x2="140" y2="148" stroke="#aa44ff" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+          <!-- Notes -->
+          <text x="285" y="100" fill="#8ba4c8" font-size="8">各Hostが</text>
+          <text x="285" y="114" fill="#8ba4c8" font-size="8">必要時に</text>
+          <text x="285" y="128" fill="#8ba4c8" font-size="8">メモリを</text>
+          <text x="285" y="142" fill="#8ba4c8" font-size="8">動的確保</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: CONTROLLER ========== -->
+<div id="page-controller" class="page">
+  <div class="page-title">PCIe / CXL コントローラ機能</div>
+  <div class="page-subtitle">コントローラはPHYとOSの間に存在するハードウェアブロック。PHYと接するPIPEインタフェース側と、NoC/AXI側の両方を理解します。</div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⊞</span>PCIe コントローラ 内部ブロック図</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 860 400" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- Outer border - Controller -->
+        <rect x="10" y="10" width="840" height="360" rx="8" fill="none" stroke="#1a3a5c" stroke-width="2"/>
+        <text x="430" y="30" fill="#4d6b8a" font-size="10" text-anchor="middle" letter-spacing="2">PCIe/CXL CONTROLLER</text>
+
+        <!-- AXI/NoC Interface (left) -->
+        <rect x="20" y="40" width="120" height="310" rx="5" fill="rgba(0,204,102,.06)" stroke="#00cc66" stroke-width="1"/>
+        <text x="80" y="60" fill="#00cc66" font-size="9" text-anchor="middle" letter-spacing="1">AXI / NoC</text>
+        <text x="80" y="75" fill="#00cc66" font-size="9" text-anchor="middle">INTERFACE</text>
+
+        <rect x="30" y="90" width="100" height="30" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="80" y="110" fill="#00cc66" font-size="8" text-anchor="middle" font-weight="700">AXI Master</text>
+
+        <rect x="30" y="130" width="100" height="30" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="80" y="150" fill="#00cc66" font-size="8" text-anchor="middle" font-weight="700">AXI Slave</text>
+
+        <rect x="30" y="170" width="100" height="30" rx="3" fill="rgba(0,204,102,.08)" stroke="#00cc66" stroke-width="1"/>
+        <text x="80" y="190" fill="#00cc66" font-size="8" text-anchor="middle" font-weight="700">IRQ / MSI-X</text>
+
+        <!-- Transaction Layer -->
+        <rect x="160" y="40" width="170" height="310" rx="5" fill="rgba(170,68,255,.06)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="245" y="60" fill="#cc88ff" font-size="9" text-anchor="middle">TRANSACTION LAYER</text>
+
+        <rect x="170" y="75" width="150" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="245" y="93" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">TLP Generator</text>
+        <text x="245" y="105" fill="#cc88ff" font-size="7" text-anchor="middle">MRd/MWr/Cpl生成</text>
+
+        <rect x="170" y="120" width="150" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="245" y="138" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">TLP Receiver</text>
+        <text x="245" y="150" fill="#cc88ff" font-size="7" text-anchor="middle">TLP解析・ルーティング</text>
+
+        <rect x="170" y="165" width="150" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="245" y="183" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">Config Space</text>
+        <text x="245" y="195" fill="#cc88ff" font-size="7" text-anchor="middle">BAR / Capabilities</text>
+
+        <rect x="170" y="210" width="150" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="245" y="228" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">Flow Control</text>
+        <text x="245" y="240" fill="#cc88ff" font-size="7" text-anchor="middle">Credits管理 (P/NP/Cpl)</text>
+
+        <rect x="170" y="255" width="150" height="35" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="245" y="273" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">IOMMU / ATS</text>
+        <text x="245" y="285" fill="#cc88ff" font-size="7" text-anchor="middle">Address Translation</text>
+
+        <rect x="170" y="300" width="150" height="40" rx="3" fill="rgba(170,68,255,.12)" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="245" y="318" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">CXL TL</text>
+        <text x="245" y="330" fill="#cc88ff" font-size="7" text-anchor="middle">CXL.cache/mem</text>
+        <text x="245" y="340" fill="#cc88ff" font-size="7" text-anchor="middle">H2D/D2H request</text>
+
+        <!-- Data Link Layer -->
+        <rect x="350" y="40" width="160" height="310" rx="5" fill="rgba(0,212,255,.06)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="430" y="60" fill="#00d4ff" font-size="9" text-anchor="middle">DATA LINK LAYER</text>
+
+        <rect x="360" y="75" width="140" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="430" y="93" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">ACK/NAK</text>
+        <text x="430" y="105" fill="#00d4ff" font-size="7" text-anchor="middle">再送制御</text>
+
+        <rect x="360" y="120" width="140" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="430" y="138" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">LCRC</text>
+        <text x="430" y="150" fill="#00d4ff" font-size="7" text-anchor="middle">32bit CRC生成/確認</text>
+
+        <rect x="360" y="165" width="140" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="430" y="183" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">Sequence Num</text>
+        <text x="430" y="195" fill="#00d4ff" font-size="7" text-anchor="middle">12bit Seq管理</text>
+
+        <rect x="360" y="210" width="140" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="430" y="228" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">Replay Buffer</text>
+        <text x="430" y="240" fill="#00d4ff" font-size="7" text-anchor="middle">NAK時の再送データ保持</text>
+
+        <rect x="360" y="255" width="140" height="35" rx="3" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="430" y="273" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">DLLP Handler</text>
+        <text x="430" y="285" fill="#00d4ff" font-size="7" text-anchor="middle">FC Update / PM</text>
+
+        <!-- Physical Layer Logic -->
+        <rect x="530" y="40" width="160" height="310" rx="5" fill="rgba(0,153,255,.06)" stroke="#0099ff" stroke-width="1"/>
+        <text x="610" y="60" fill="#4db8ff" font-size="9" text-anchor="middle">PHY LOGIC (MAC)</text>
+
+        <rect x="540" y="75" width="140" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="610" y="93" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">Framing</text>
+        <text x="610" y="105" fill="#4db8ff" font-size="7" text-anchor="middle">STP/SDP/EDP/EDS</text>
+
+        <rect x="540" y="120" width="140" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="610" y="138" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">128b/130b Encode</text>
+        <text x="610" y="150" fill="#4db8ff" font-size="7" text-anchor="middle">Gen3以降のライン符号</text>
+
+        <rect x="540" y="165" width="140" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="610" y="183" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">Scrambler</text>
+        <text x="610" y="195" fill="#4db8ff" font-size="7" text-anchor="middle">EMI低減・DC Balance</text>
+
+        <rect x="540" y="210" width="140" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="610" y="228" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">LTSSM</text>
+        <text x="610" y="240" fill="#4db8ff" font-size="7" text-anchor="middle">Link Training State Machine</text>
+
+        <rect x="540" y="255" width="140" height="35" rx="3" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1"/>
+        <text x="610" y="273" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">Lane Margining</text>
+        <text x="610" y="285" fill="#4db8ff" font-size="7" text-anchor="middle">Eye Margin / EQ制御</text>
+
+        <rect x="540" y="300" width="140" height="40" rx="3" fill="rgba(0,153,255,.12)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="610" y="318" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">PIPE Interface</text>
+        <text x="610" y="330" fill="#4db8ff" font-size="7" text-anchor="middle">PHY制御信号 (Status/Ctrl)</text>
+        <text x="610" y="340" fill="#ff8855" font-size="7" text-anchor="middle">← PHYとの境界</text>
+
+        <!-- PHY SerDes block (outside controller) -->
+        <rect x="710" y="40" width="130" height="310" rx="5" fill="rgba(255,107,53,.1)" stroke="#ff6b35" stroke-width="2"/>
+        <text x="775" y="60" fill="#ff8855" font-size="9" text-anchor="middle" letter-spacing="1">PCIe PHY</text>
+        <text x="775" y="75" fill="#ff8855" font-size="8" text-anchor="middle">(あなたのIP)</text>
+
+        <rect x="720" y="88" width="110" height="30" rx="3" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="775" y="108" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">PCS (Digital)</text>
+
+        <rect x="720" y="128" width="110" height="30" rx="3" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="775" y="148" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">SerDes Core</text>
+
+        <rect x="720" y="168" width="110" height="30" rx="3" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="775" y="188" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">CDR / EQ</text>
+
+        <rect x="720" y="208" width="110" height="30" rx="3" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="775" y="228" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">PLL / CMU</text>
+
+        <rect x="720" y="248" width="110" height="30" rx="3" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="775" y="268" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">TX Driver</text>
+
+        <rect x="720" y="288" width="110" height="30" rx="3" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="775" y="308" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">RX Amp/DFE</text>
+
+        <rect x="720" y="328" width="110" height="30" rx="3" fill="rgba(255,107,53,.2)" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="775" y="343" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">Pad (connector)</text>
+        <text x="775" y="356" fill="#ff8855" font-size="7" text-anchor="middle">← 実際のPINはここ</text>
+
+        <!-- Connection arrows between layers -->
+        <line x1="140" y1="200" x2="160" y2="200" stroke="#00cc66" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="330" y1="200" x2="350" y2="200" stroke="#aa44ff" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="510" y1="200" x2="530" y2="200" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="695" y1="320" x2="710" y2="320" stroke="#0099ff" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">▶</span>LTSSM (Link Training & Status State Machine)</div>
+    <div class="diagram-wrap" style="padding:16px;">
+      <svg width="100%" viewBox="0 0 860 200" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- States -->
+        <rect x="10" y="60" width="90" height="45" rx="4" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1.5"/>
+        <text x="55" y="82" fill="#ffcc00" font-size="9" text-anchor="middle" font-weight="700">Detect</text>
+        <text x="55" y="97" fill="#ffcc00" font-size="7" text-anchor="middle">相手検出</text>
+
+        <path d="M100,82 L130,82" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="130" y="60" width="90" height="45" rx="4" fill="rgba(0,153,255,.1)" stroke="#0099ff" stroke-width="1.5"/>
+        <text x="175" y="82" fill="#4db8ff" font-size="9" text-anchor="middle" font-weight="700">Polling</text>
+        <text x="175" y="97" fill="#4db8ff" font-size="7" text-anchor="middle">TS1/TS2送受信</text>
+
+        <path d="M220,82 L250,82" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="250" y="60" width="90" height="45" rx="4" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1.5"/>
+        <text x="295" y="82" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">Config</text>
+        <text x="295" y="97" fill="#00d4ff" font-size="7" text-anchor="middle">幅・速度ネゴ</text>
+
+        <path d="M340,82 L370,82" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="370" y="60" width="90" height="45" rx="4" fill="rgba(170,68,255,.12)" stroke="#aa44ff" stroke-width="1.5"/>
+        <text x="415" y="82" fill="#cc88ff" font-size="9" text-anchor="middle" font-weight="700">Recovery</text>
+        <text x="415" y="97" fill="#cc88ff" font-size="7" text-anchor="middle">速度変更・EQ</text>
+
+        <path d="M460,82 L490,82" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="490" y="50" width="90" height="60" rx="4" fill="rgba(0,255,136,.12)" stroke="#00ff88" stroke-width="2"/>
+        <text x="535" y="74" fill="#00ff88" font-size="10" text-anchor="middle" font-weight="700">L0</text>
+        <text x="535" y="90" fill="#00ff88" font-size="8" text-anchor="middle">通常動作</text>
+        <text x="535" y="104" fill="#00ff88" font-size="7" text-anchor="middle">TLP転送中</text>
+
+        <path d="M580,80 L620,80" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="620" y="60" width="90" height="45" rx="4" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="665" y="82" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">L0s / L1</text>
+        <text x="665" y="97" fill="#00d4ff" font-size="7" text-anchor="middle">省電力モード</text>
+
+        <path d="M710,80 L740,80" stroke="#4d6b8a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <rect x="740" y="60" width="100" height="45" rx="4" fill="rgba(255,107,53,.08)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="790" y="82" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">L2 / L3</text>
+        <text x="790" y="97" fill="#ff8855" font-size="7" text-anchor="middle">電源OFF状態</text>
+
+        <!-- Recovery back arrow -->
+        <path d="M535,110 Q535,150 415,150 Q295,150 295,105" stroke="#aa44ff" stroke-width="1" stroke-dasharray="4,3" fill="none" marker-end="url(#arr-p)"/>
+        <text x="415" y="168" fill="#aa44ff" font-size="8" text-anchor="middle">エラー/速度変更時 → Recovery</text>
+
+        <!-- PHY roles note -->
+        <text x="10" y="190" fill="#ff8855" font-size="8">PHY担当: LTSSMはMAC層が実装するが、Detect/Polling/Recovery時のPLL再起動・EQ実行・CDR lockはPHYが実行する。</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PAGE: PHY ========== -->
+<div id="page-phy" class="page">
+  <div class="page-title">PHY ↔ 上位層インタフェース</div>
+  <div class="page-subtitle">あなたが担当するPHY IPが、PCIeコントローラ（MAC）やシステムとどう繋がっているかを詳解します。</div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚡</span>PIPE (PHY Interface for PCI Express) 詳細</div>
+    <div class="diagram-wrap">
+      <svg width="100%" viewBox="0 0 860 340" style="max-width:860px;display:block;margin:0 auto;">
+        <!-- MAC block -->
+        <rect x="10" y="20" width="340" height="300" rx="8" fill="rgba(0,212,255,.05)" stroke="#00d4ff" stroke-width="1.5"/>
+        <text x="180" y="42" fill="#00d4ff" font-size="11" text-anchor="middle" letter-spacing="1">MAC / CONTROLLER (PCS上位)</text>
+
+        <rect x="24" y="56" width="140" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="94" y="78" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">TxData[31:0]</text>
+
+        <rect x="178" y="56" width="140" height="35" rx="3" fill="rgba(0,212,255,.1)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="248" y="78" fill="#00d4ff" font-size="9" text-anchor="middle" font-weight="700">RxData[31:0]</text>
+
+        <rect x="24" y="104" width="140" height="30" rx="3" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="94" y="124" fill="#00d4ff" font-size="8" text-anchor="middle">TxDataK[3:0] (ctrl symbol)</text>
+
+        <rect x="178" y="104" width="140" height="30" rx="3" fill="rgba(0,212,255,.08)" stroke="#00d4ff" stroke-width="1"/>
+        <text x="248" y="124" fill="#00d4ff" font-size="8" text-anchor="middle">RxDataK[3:0]</text>
+
+        <rect x="24" y="145" width="80" height="28" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+        <text x="64" y="163" fill="#ffcc00" font-size="8" text-anchor="middle" font-weight="700">TxElecIdle</text>
+
+        <rect x="116" y="145" width="80" height="28" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+        <text x="156" y="163" fill="#ffcc00" font-size="8" text-anchor="middle" font-weight="700">RxValid</text>
+
+        <rect x="208" y="145" width="110" height="28" rx="3" fill="rgba(255,204,0,.1)" stroke="#ffcc00" stroke-width="1"/>
+        <text x="263" y="163" fill="#ffcc00" font-size="8" text-anchor="middle" font-weight="700">PowerDown[1:0]</text>
+
+        <rect x="24" y="185" width="90" height="28" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="69" y="203" fill="#00cc66" font-size="8" text-anchor="middle" font-weight="700">RxPolarity</text>
+
+        <rect x="126" y="185" width="90" height="28" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="171" y="203" fill="#00cc66" font-size="8" text-anchor="middle" font-weight="700">TxMargin</text>
+
+        <rect x="228" y="185" width="100" height="28" rx="3" fill="rgba(0,204,102,.1)" stroke="#00cc66" stroke-width="1"/>
+        <text x="278" y="203" fill="#00cc66" font-size="8" text-anchor="middle" font-weight="700">TxDeemph</text>
+
+        <rect x="24" y="225" width="130" height="28" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="89" y="243" fill="#cc88ff" font-size="8" text-anchor="middle" font-weight="700">Rate[1:0] (Gen選択)</text>
+
+        <rect x="166" y="225" width="155" height="28" rx="3" fill="rgba(170,68,255,.1)" stroke="#aa44ff" stroke-width="1"/>
+        <text x="244" y="243" fill="#cc88ff" font-size="8" text-anchor="middle" font-weight="700">PhyStatus (完了通知)</text>
+
+        <rect x="24" y="265" width="120" height="28" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="84" y="283" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">RxEqTraining</text>
+
+        <rect x="156" y="265" width="165" height="28" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="239" y="283" fill="#ff8855" font-size="8" text-anchor="middle" font-weight="700">StartRxEqEval (EQ制御)</text>
+
+        <!-- PIPE interface arrow -->
+        <rect x="365" y="120" width="130" height="100" rx="5" fill="rgba(255,107,53,.15)" stroke="#ff6b35" stroke-width="2"/>
+        <text x="430" y="145" fill="#ff8855" font-size="10" text-anchor="middle" font-weight="700">PIPE</text>
+        <text x="430" y="162" fill="#ff8855" font-size="9" text-anchor="middle">Interface</text>
+        <text x="430" y="178" fill="#ff8855" font-size="8" text-anchor="middle">標準化された</text>
+        <text x="430" y="193" fill="#ff8855" font-size="8" text-anchor="middle">MAC-PHY境界</text>
+        <text x="430" y="210" fill="#ff8855" font-size="7" text-anchor="middle">OIF/PCI-SIG 定義</text>
+
+        <path d="M350,170 L365,170" stroke="#ff6b35" stroke-width="2" marker-end="url(#arr)"/>
+        <path d="M495,170 L510,170" stroke="#ff6b35" stroke-width="2" marker-end="url(#arr)"/>
+
+        <!-- PHY block -->
+        <rect x="510" y="20" width="340" height="300" rx="8" fill="rgba(255,107,53,.07)" stroke="#ff6b35" stroke-width="2"/>
+        <text x="680" y="42" fill="#ff8855" font-size="11" text-anchor="middle" letter-spacing="1">PHY (あなたのIP)</text>
+
+        <rect x="524" y="56" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="594" y="74" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">PCS (Digital)</text>
+        <text x="594" y="87" fill="#ff8855" font-size="7" text-anchor="middle">128b/130b enc/dec</text>
+
+        <rect x="676" y="56" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="746" y="74" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">Scrambler/Descr.</text>
+        <text x="746" y="87" fill="#ff8855" font-size="7" text-anchor="middle">LFSR-based</text>
+
+        <rect x="524" y="106" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="594" y="124" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">CDR</text>
+        <text x="594" y="137" fill="#ff8855" font-size="7" text-anchor="middle">Clock Data Recovery</text>
+
+        <rect x="676" y="106" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="746" y="124" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">FFE / CTLE</text>
+        <text x="746" y="137" fill="#ff8855" font-size="7" text-anchor="middle">Rx Equalization</text>
+
+        <rect x="524" y="155" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="594" y="173" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">DFE</text>
+        <text x="594" y="186" fill="#ff8855" font-size="7" text-anchor="middle">Decision Feedback EQ</text>
+
+        <rect x="676" y="155" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="746" y="173" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">PLL / CMU</text>
+        <text x="746" y="186" fill="#ff8855" font-size="7" text-anchor="middle">Reference Clk管理</text>
+
+        <rect x="524" y="205" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="594" y="223" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">TX Driver</text>
+        <text x="594" y="236" fill="#ff8855" font-size="7" text-anchor="middle">Swing / Pre-emphasis</text>
+
+        <rect x="676" y="205" width="140" height="35" rx="3" fill="rgba(255,107,53,.12)" stroke="#ff6b35" stroke-width="1"/>
+        <text x="746" y="223" fill="#ff8855" font-size="9" text-anchor="middle" font-weight="700">RX Termination</text>
+        <text x="746" y="236" fill="#ff8855" font-size="7" text-anchor="middle">AC/DC coupled</text>
+
+        <!-- I/O Pad -->
+        <rect x="524" y="255" width="292" height="50" rx="4" fill="rgba(255,107,53,.2)" stroke="#ff6b35" stroke-width="2"/>
+        <text x="670" y="276" fill="#ff8855" font-size="11" text-anchor="middle" font-weight="700">I/O PAD (実チップPIN)</text>
+        <text x="670" y="294" fill="#ff8855" font-size="8" text-anchor="middle">TX+/TX- · RX+/RX- · REFCLK+/REFCLK-</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">≡</span>PCIe Equalization フェーズ（Gen3以降）</div>
+      <table class="data-table">
+        <thead><tr><th>Phase</th><th>主体</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>Phase 0</td><td>デフォルト</td><td>規定のプリセット値でリンクアップ試行</td></tr>
+          <tr><td style="color:#0099ff;">Phase 1</td><td>DownStream→Up</td><td>TX係数(C-1,C0,C+1)をフィードバック受信</td></tr>
+          <tr><td style="color:#aa44ff;">Phase 2</td><td>UpStream→Down</td><td>逆方向でTX係数最適化</td></tr>
+          <tr><td style="color:#00ff88;">Phase 3</td><td>両端</td><td>EQ完了確認・L0遷移</td></tr>
+        </tbody>
+      </table>
+      <div class="highlight ok">
+        Gen3(8GT/s)以降はハードウェアEQが必須。PHYはCTLE/DFE係数を<code>PIPE::TxCoeff</code>信号で受け取り適用します。Gen6(PAM4)ではLMS/ZFアルゴリズムが更に重要。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">▶</span>PHY エンジニアが知っておくべき上位層の要求</div>
+      <div class="highlight">
+        <strong>Compliance Test:</strong> PCIe規格の認証テストはMAC側からPIPE信号を制御して実施。PHYは<code>TXMARGIN</code>によるマージン測定や<code>Loopback</code>モードに対応が必要。
+      </div>
+      <div class="highlight warn">
+        <strong>電力管理:</strong> OSがデバイスをD3状態にするとLTSSMがL1/L2へ遷移。PHYは<code>PowerDown[1:0]</code>に応じてPLLを停止し、最大消費電力(ASPM)を満たす必要があります。
+      </div>
+      <div class="highlight ok">
+        <strong>CXL特有:</strong> CXL.cacheの低レイテンシ要求はPHY段のFIFO深度・レイテンシにも影響。CXL 3.0(Gen6)ではFLITベースでエラー訂正をPHYに近い層で実施し、再送レイテンシを削減。
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── Navigation ──
+function switchPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+
+  // Find matching sidebar item
+  document.querySelectorAll('.sidebar-item').forEach(s => {
+    if (s.getAttribute('onclick') && s.getAttribute('onclick').includes("'" + id + "'")) {
+      s.classList.add('active');
+    }
+  });
+
+  // Find matching nav tab
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'" + id + "'")) {
+      t.classList.add('active');
+    }
+  });
+}
+
+// ── Layer info ──
+const layerData = {
+  app: {
+    title: 'Application Layer',
+    color: '#00cc66',
+    text: `ユーザーが実際に使うソフトウェア層。GPU向けには <code>CUDA</code>/<code>ROCm</code>、ストレージには <code>NVMe コマンド</code>、ネットワークには <code>RDMA verb</code> などが該当します。PCIeハードウェアを直接意識することはほとんどなく、OS/ドライバが抽象化して提供するAPIを使います。`
+  },
+  os: {
+    title: 'OS / Software Stack (Kernel)',
+    color: '#ffcc00',
+    text: `Linux KernelやWindowsのPCIe管理機能。<code>ACPI</code>による電源管理、<code>sysfs</code>でのデバイス情報公開、<code>PCIe AER</code>(Advanced Error Reporting)ハンドリングなどを担います。Kernel起動時にRoot ComplexへConfig Space アクセスを行い、バスツリーを構築します。`
+  },
+  drv: {
+    title: 'Device Driver',
+    color: '#ff6b35',
+    text: `OS Kernelの中で動くデバイス固有コード。主な役割: ① <code>pci_register_driver()</code>で自分を登録 ② probeでBARをioremap ③ DMAバッファ確保 (<code>dma_alloc_coherent</code>) ④ MSI-X設定 ⑤ ファームウェアロード。PHY視点では、ドライバがレジスタにアクセスする際、すべてのMMIO書き込みはMWr TLPとしてPHYを通過します。`
+  },
+  rc: {
+    title: 'Root Complex (RC) / Endpoint',
+    color: '#0099ff',
+    text: `RCはCPUパッケージ内のPCIeホスト側コントローラ。CPUのメモリバスとPCIe TLPを相互変換します。EndpointはデバイスのPCIeコントローラ。<code>Requester ID</code> (BDF) を持ち、TLPの送受信を行います。RC/EPいずれも内部にTL/DLL/PLの3層を持ちますが、PHYはその最下層に位置します。`
+  },
+  tl: {
+    title: 'Transaction Layer (TL)',
+    color: '#aa44ff',
+    text: `TLPを生成・受信・ルーティングする層。主な機能: ① <code>フロー制御</code> (Posted/Non-Posted/Completion Creditsを管理) ② <code>QoS</code> (TC/VC マッピング) ③ <code>TLPヘッダ生成</code> (Type, Length, Requester/Completer ID, Tag) ④ <code>ECRC</code>（エンドツーエンドCRC、オプション）。CXLはここにCXL.io/cache/memサブレイヤを追加します。`
+  },
+  dl: {
+    title: 'Data Link Layer (DLL)',
+    color: '#00d4ff',
+    text: `リンク間の信頼性を保証する層。機能: ① <code>Sequence Number</code>付与（12bit） ② <code>LCRC</code>（32bit CRC）生成・チェック ③ <code>ACK/NAK</code>による再送制御（Replay Buffer管理） ④ <code>DLLP</code>（Data Link Layer Packet）でフロークレジット更新・電源管理を通知。DLLPはTLPとは独立した制御パケット。`
+  },
+  pl: {
+    title: '⚡ Physical Layer (PL) — あなたの担当領域',
+    color: '#ff8855',
+    text: `PHY層は2つのサブ層から成ります。<strong>PCS (Physical Coding Sublayer):</strong> 128b/130b符号化・スクランブル・フレーミング (STP/SDP/EDB) ・LTSSMの実行。<strong>PMA (Physical Media Attachment):</strong> SerDes・CDR・PLL・TX Driver・RX Equalizer (CTLE/DFE)・I/O PAD。<code>PIPE Interface</code>がMAC(Controller)とPHYの標準的な境界です。Gen6(64GT/s)ではPAM4変調・FLITフレーミングへ移行。`
+  }
+};
+
+function showLayerInfo(id) {
+  const d = layerData[id];
+  if (!d) return;
+  const el = document.getElementById('layerInfo');
+  el.innerHTML = `<h3 style="color:${d.color}">${d.title}</h3><p>${d.text}</p>`;
+
+  document.querySelectorAll('.layer').forEach(l => l.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+// ── CXL Types ──
+const cxlTypeData = {
+  1: {
+    title: 'CXL Type 1 — CXL.io + CXL.cache',
+    color: '#cc88ff',
+    text: `デバイスがHost物理メモリをキャッシュするための一方向キャッシュ一貫性プロトコル。<br><br>
+    <strong>典型デバイス:</strong> SmartNIC, FPGAアクセラレータ, セキュリティプロセッサ<br><br>
+    <strong>動作:</strong> デバイスがHostのキャッシュラインをSnoop可能なキャッシュに保持。読み込んだデータを変更した場合、<code>D2H Req: RspSHitSE</code>でホストに通知してコヒーレンシを維持します。<br><br>
+    <strong>PHY視点:</strong> CXL.io（PCIe互換TLP）+ CXL.cache HDRパケットが物理層を共有。通常のPCIe Gen5 PHYをそのまま使用。`
+  },
+  2: {
+    title: 'CXL Type 2 — CXL.io + CXL.cache + CXL.mem',
+    color: '#cc88ff',
+    text: `最も複雑な双方向キャッシュ一貫性。デバイスがHostメモリをキャッシュし、かつHostがデバイスメモリをアクセスできる。<br><br>
+    <strong>典型デバイス:</strong> AI/ML GPU, HBMメモリ搭載アクセラレータ, DPU<br><br>
+    <strong>動作:</strong> <code>CXL.cache</code>でデバイス→Host方向のコヒーレンシ、<code>CXL.mem</code>でHost→デバイスメモリへのM2S(Master-to-Slave)リクエストをサポート。<br><br>
+    <strong>HDM (Host-managed Device Memory):</strong> デバイス上のDRAMがHostの物理アドレス空間に直接マップされる。`
+  },
+  3: {
+    title: 'CXL Type 3 — CXL.io + CXL.mem',
+    color: '#00ff88',
+    text: `シンプルなメモリ拡張専用デバイス。キャッシュ一貫性は不要で、メモリ容量拡張が主目的。<br><br>
+    <strong>典型デバイス:</strong> DRAMモジュール拡張、Persistent Memory (PMem)、CXL DIMM<br><br>
+    <strong>動作:</strong> HostがCXL.mem経由でデバイスメモリにM2S Req(Read/Write)を発行。デバイスはS2M Data/NDRで応答。<code>DVSEC (Designated Vendor-Specific Extended Capability)</code>でHDM Decoder設定。<br><br>
+    <strong>CXL 2.0以降:</strong> Switch経由で複数HostがMemory Poolを共有するFAM(Fabric Attached Memory)が可能。`
+  }
+};
+
+function showCxlType(n) {
+  document.querySelectorAll('.cxl-type-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('cxlType' + n).classList.add('selected');
+
+  const d = cxlTypeData[n];
+  document.getElementById('cxlTypeInfo').innerHTML =
+    `<h3 style="color:${d.color}">${d.title}</h3><p style="font-size:12px;line-height:1.8;color:var(--text2);">${d.text}</p>`;
+}
+</script>
+</body>
+</html>
